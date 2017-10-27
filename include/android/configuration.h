@@ -349,6 +349,13 @@ enum {
      */
     ACONFIGURATION_UI_MODE_NIGHT_YES = 0x2,
 
+    /**
+     * UI retro mode: value that corresponds to
+     * <a href="@dacRoot/guide/topics/resources/providing-resources.html#NightQualifier">blackout</a> resource qualifier specified.
+     */
+    ACONFIGURATION_UI_MODE_NIGHT_RETRO = 0x3,
+
+
     /** Screen width DPI: not specified. */
     ACONFIGURATION_SCREEN_WIDTH_DP_ANY = 0x0000,
 
