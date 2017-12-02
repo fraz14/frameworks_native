@@ -348,13 +348,34 @@ enum {
      * <a href="@dacRoot/guide/topics/resources/providing-resources.html#NightQualifier">night</a> resource qualifier specified.
      */
     ACONFIGURATION_UI_MODE_NIGHT_YES = 0x2,
-
     /**
-     * UI retro mode: value that corresponds to
-     * <a href="@dacRoot/guide/topics/resources/providing-resources.html#NightQualifier">blackout</a> resource qualifier specified.
+     * UI night mode: value that corresponds to NightQualifier "white"
      */
-    ACONFIGURATION_UI_MODE_NIGHT_RETRO = 0x3,
-
+    ACONFIGURATION_UI_MODE_NIGHT_WHITE = 0x3,
+    /**
+     * UI night mode: value that corresponds to NightQualifier "red"
+     */
+    ACONFIGURATION_UI_MODE_NIGHT_RED = 0x4,
+    /**
+     * UI night mode: value that corresponds to NightQualifier "mint"
+     */
+    ACONFIGURATION_UI_MODE_NIGHT_MINT = 0x5,
+    /**
+     * UI night mode: value that corresponds to NightQualifier "yellow"
+     */
+    ACONFIGURATION_UI_MODE_NIGHT_YELLOW = 0x6,
+    /**
+     * UI night mode: value that corresponds to NightQualifier "gold"
+     */
+    ACONFIGURATION_UI_MODE_NIGHT_GOLD = 0x7,
+    /**
+     * UI night mode: value that corresponds to NightQualifier "blue"
+     */
+    ACONFIGURATION_UI_MODE_NIGHT_BLUE = 0x8,
+    /**
+     * UI night mode: value that corresponds to NightQualifier "pink"
+     */
+    ACONFIGURATION_UI_MODE_NIGHT_PINK = 0x9,    
 
     /** Screen width DPI: not specified. */
     ACONFIGURATION_SCREEN_WIDTH_DP_ANY = 0x0000,
