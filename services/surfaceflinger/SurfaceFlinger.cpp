@@ -1671,6 +1671,7 @@ void SurfaceFlinger::rebuildLayerStacks() {
             Region opaqueRegion;
             Region dirtyRegion;
             Vector<sp<Layer>> layersSortedByZ;
+            Vector<sp<Layer>> layersNeedingFences;
             const sp<DisplayDevice>& displayDevice(mDisplays[dpy]);
             const Transform& tr(displayDevice->getTransform());
             const Rect bounds(displayDevice->getBounds());
@@ -1680,6 +1681,7 @@ void SurfaceFlinger::rebuildLayerStacks() {
                         opaqueRegion);
 
                 mDrawingState.traverseInZOrder([&](Layer* layer) {
+                    bool hwcLayerDestroyed = false;
                     if (layer->getLayerStack() == displayDevice->getLayerStack()) {
                         Region drawRegion(tr.transform(
                                 layer->visibleNonTransparentRegion));
@@ -1689,6 +1691,8 @@ void SurfaceFlinger::rebuildLayerStacks() {
                         } else {
                             // Clear out the HWC layer if this layer was
                             // previously visible, but no longer is
+                            hwcLayerDestroyed = layer->hasHwcLayer(
+                                    displayDevice->getHwcDisplayId());
                             layer->setHwcLayer(displayDevice->getHwcDisplayId(),
                                     nullptr);
                         }
@@ -1696,12 +1700,26 @@ void SurfaceFlinger::rebuildLayerStacks() {
                         // WM changes displayDevice->layerStack upon sleep/awake.
                         // Here we make sure we delete the HWC layers even if
                         // WM changed their layer stack.
+                        hwcLayerDestroyed = layer->hasHwcLayer(displayDevice->getHwcDisplayId());
                         layer->setHwcLayer(displayDevice->getHwcDisplayId(),
                                 nullptr);
+                    }
+
+                    // If a layer is not going to get a release fence because
+                    // it is invisible, but it is also going to release its
+                    // old buffer, add it to the list of layers needing
+                    // fences.
+                    if (hwcLayerDestroyed) {
+                        auto found = std::find(mLayersWithQueuedFrames.cbegin(),
+                                mLayersWithQueuedFrames.cend(), layer);
+                        if (found != mLayersWithQueuedFrames.cend()) {
+                            layersNeedingFences.add(layer);
+                        }
                     }
                 });
             }
             displayDevice->setVisibleLayersSortedByZ(layersSortedByZ);
+            displayDevice->setLayersNeedingFences(layersNeedingFences);
             displayDevice->undefinedRegion.set(bounds);
             displayDevice->undefinedRegion.subtractSelf(
                     tr.transform(opaqueRegion));
@@ -1902,15 +1920,35 @@ void SurfaceFlinger::postFramebuffer()
         displayDevice->onSwapBuffersCompleted();
         displayDevice->makeCurrent(mEGLDisplay, mEGLContext);
         for (auto& layer : displayDevice->getVisibleLayersSortedByZ()) {
-            sp<Fence> releaseFence = Fence::NO_FENCE;
+            // The layer buffer from the previous frame (if any) is released
+            // by HWC only when the release fence from this frame (if any) is
+            // signaled.  Always get the release fence from HWC first.
+            auto hwcLayer = layer->getHwcLayer(hwcId);
+            sp<Fence> releaseFence = mHwc->getLayerReleaseFence(hwcId, hwcLayer);
+
+            // If the layer was client composited in the previous frame, we
+            // need to merge with the previous client target acquire fence.
+            // Since we do not track that, always merge with the current
+            // client target acquire fence when it is available, even though
+            // this is suboptimal.
             if (layer->getCompositionType(hwcId) == HWC2::Composition::Client) {
-                releaseFence = displayDevice->getClientTargetAcquireFence();
-            } else {
-                auto hwcLayer = layer->getHwcLayer(hwcId);
-                releaseFence = mHwc->getLayerReleaseFence(hwcId, hwcLayer);
+                releaseFence = Fence::merge("LayerRelease", releaseFence,
+                        displayDevice->getClientTargetAcquireFence());
             }
+
             layer->onLayerDisplayed(releaseFence);
         }
+
+        // We've got a list of layers needing fences, that are disjoint with
+        // displayDevice->getVisibleLayersSortedByZ.  The best we can do is to
+        // supply them with the present fence.
+        if (!displayDevice->getLayersNeedingFences().isEmpty()) {
+            sp<Fence> presentFence = mHwc->getPresentFence(hwcId);
+            for (auto& layer : displayDevice->getLayersNeedingFences()) {
+                layer->onLayerDisplayed(presentFence);
+            }
+        }
+
         if (hwcId >= 0) {
             mHwc->clearReleaseFences(hwcId);
         }
