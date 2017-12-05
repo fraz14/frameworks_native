@@ -355,7 +355,7 @@ enum {
     /**
      * UI night mode: value that corresponds to NightQualifier "red"
      */
-    ACONFIGURATION_UI_MODE_NIGHT_RED = 0x4,
+    ACONFIGURATION_UI_MODE_NIGHT_BDRED = 0x4,
     /**
      * UI night mode: value that corresponds to NightQualifier "mint"
      */
